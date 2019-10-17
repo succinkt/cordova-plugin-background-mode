@@ -36,6 +36,10 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.app.NotificationChannel;
 
+import android.graphics.Color;
+import android.support.v4.app.NotificationCompat;
+import java.lang.reflect.Method;
+
 import org.json.JSONObject;
 
 import static android.os.PowerManager.PARTIAL_WAKE_LOCK;
@@ -123,7 +127,7 @@ public class ForegroundService extends Service {
      * by the OS.
      */
     @SuppressLint("WakelockTimeout")
-    private void keepAwake()
+    /*private void keepAwake()
     {
         JSONObject settings = BackgroundMode.getSettings();
         boolean isSilent    = settings.optBoolean("silent", false);
@@ -138,7 +142,47 @@ public class ForegroundService extends Service {
                 PARTIAL_WAKE_LOCK, "backgroundmode:wakelock");
 
         wakeLock.acquire();
+    }*/
+
+    private void keepAwake() {
+    JSONObject settings = BackgroundMode.getSettings();
+    boolean isSilent    = settings.optBoolean("silent", false);
+
+    if (!isSilent) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            startMyOwnForeground();
+        else
+            startForeground(NOTIFICATION_ID, makeNotification());
     }
+
+    PowerManager powerMgr = (PowerManager)
+            getSystemService(POWER_SERVICE);
+
+    wakeLock = powerMgr.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK, "BackgroundMode");
+
+    wakeLock.acquire();
+}
+
+    private void startMyOwnForeground(){
+    String NOTIFICATION_CHANNEL_ID = "com.zappdata.id";
+    String channelName = "ZD Background Service";
+    NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_NONE);
+    chan.setLightColor(Color.BLUE);
+    chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+    NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+    assert manager != null;
+    manager.createNotificationChannel(chan);
+
+    NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID);
+    Notification notification = notificationBuilder.setOngoing(true)
+            //.setSmallIcon(R.drawable.icon_1)
+            .setContentTitle("App is running in background")
+            .setPriority(NotificationManager.IMPORTANCE_MIN)
+            .setCategory(Notification.CATEGORY_SERVICE)
+            .build();
+    startForeground(2, notification);
+} 
 
     /**
      * Stop background mode.
